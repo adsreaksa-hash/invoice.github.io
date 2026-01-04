@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="km">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fully Customizable Invoice</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Battambang:wght@400;700&family=Dancing+Script:wght@700&family=Noto+Sans+Khmer:wght@400;600&family=Playfair+Display:wght@700&family=Poppins:wght@300;400;600&family=Roboto:wght@400;700&display=swap');
+    </style>
+
+    <style>
+        :root {
+            /* Default Colors - Will be updated by JS */
+            --primary-color: #122826; /* Dark Green */
+            --accent-color: #A05530;  /* Brown/Orange */
+            --text-color: #333333;    /* Dark Grey */
+            --bg-color: #ffffff;
+            --font-family: 'Poppins', 'Noto Sans Khmer', sans-serif;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background: #e0e0e0;
+            margin: 0;
+            padding: 20px;
+            color: var(--text-color);
+        }
+
+        /* --- CONTROL PANEL (New Feature) --- */
+        .control-panel {
+            background: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            max-width: 800px;
+            margin: 0 auto 20px auto;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #ddd;
+        }
+        
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .color-picker {
+            width: 40px;
+            height: 30px;
+            cursor: pointer;
+            border: 1px solid #ccc;
+            padding: 0;
+            background: none;
+        }
+
+        select.font-select {
+            padding: 5px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+        }
+
+        .action-btn {
+            padding: 8px 15px;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            border-radius: 5px;
+            font-weight: bold;
+            transition: 0.2s;
+        }
+        .action-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+        
+        .btn-print { background-color: #555; }
+        .btn-jpg { background-color: #2196F3; }
+        .btn-pdf { background-color: #f44336; }
+
+        /* --- INVOICE STYLES --- */
+        .invoice-container {
+            background: var(--bg-color);
+            width: 794px; /* A4 width */
+            margin: 0 auto;
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+            position: relative;
+            min-height: 1123px; /* A4 height */
+            box-sizing: border-box;
+            color: var(--text-color);
+        }
+
+        /* Header */
+        header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 30px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.3s;
+        }
+
+        header h1 {
+            font-size: 48px;
+            margin: 0;
+            outline: none;
+        }
+
+        /* Logo */
+        .logo-container { text-align: right; }
+        .logo-text { font-size: 20px; font-weight: 600; cursor: pointer; }
+        #logo-image { max-height: 60px; display: none; cursor: pointer; }
+        .logo-upload-label { font-size: 11px; color: rgba(255,255,255,0.7); display: block; cursor: pointer; }
+
+        /* Separator */
+        .separator {
+            height: 10px;
+            background-color: var(--accent-color);
+            width: 100%;
+            transition: background 0.3s;
+        }
+
+        /* Info & Table */
+        .info-section { padding: 30px 40px; display: flex; justify-content: space-between; }
+        .bill-to h3 { margin-top: 0; font-size: 18px; outline: none; color: var(--primary-color); }
+        
+        [contenteditable="true"] { outline: none; border-bottom: 1px dashed transparent; }
+        [contenteditable="true"]:hover { border-bottom: 1px dashed #ccc; }
+
+        .table-container { padding: 0 40px; margin-top: 20px; }
+        table.main-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 2px solid var(--primary-color);
+        }
+        table.main-table th {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 10px;
+            border: 1px solid var(--primary-color);
+        }
+        table.main-table td {
+            border: 1px solid var(--primary-color); /* Matches theme */
+            padding: 10px;
+            text-align: center;
+        }
+        table.main-table td:nth-child(2) { text-align: left; }
+
+        /* Inputs & Buttons */
+        input.editable { border: none; width: 100%; text-align: center; font-family: inherit; font-size: inherit; background: transparent; color: inherit; outline: none; }
+        
+        .add-btn { background-color: var(--primary-color); color: white; border: none; padding: 8px 15px; margin-top: 10px; cursor: pointer; border-radius: 4px; }
+        .delete-btn { background-color: #ff4d4d; color: white; border: none; width: 20px; height: 20px; border-radius: 50%; cursor: pointer; font-size: 10px; }
+
+        /* Summary */
+        .summary-section { display: flex; justify-content: space-between; padding: 0 40px; margin-top: 20px; }
+        .totals { width: 45%; border: 2px solid var(--primary-color); border-top: none; }
+        .totals-row { display: flex; justify-content: space-between; padding: 10px 15px; border-bottom: 1px solid #eee; }
+        .amount-due { background-color: var(--primary-color); color: white; font-weight: bold; padding: 15px; display: flex; justify-content: space-between; }
+        .tax-input { width: 40px; text-align: right; border: none; border-bottom: 1px solid #ccc; font-family: inherit; color: inherit; background: transparent;}
+
+        /* Footer */
+        .footer-terms { padding: 20px 40px; display: flex; justify-content: space-between; align-items: flex-end; margin-top: 30px; }
+        .terms-text { width: 60%; font-size: 12px; opacity: 0.8; }
+        .signature { width: 30%; text-align: center; border-top: 1px solid var(--text-color); padding-top: 10px; }
+        
+        .page-footer {
+            background-color: var(--primary-color);
+            color: rgba(255,255,255,0.7);
+            padding: 20px 40px;
+            display: flex; justify-content: space-between;
+            font-size: 12px; margin-top: 20px;
+            border-top: 5px solid var(--accent-color);
+            position: absolute; bottom: 0; left: 0; right: 0;
+        }
+
+        /* Saving/Printing Mode */
+        @media print {
+            body { background: none; padding: 0; -webkit-print-color-adjust: exact; }
+            .control-panel, .add-btn, .delete-btn, .logo-upload-label { display: none !important; }
+            .invoice-container { margin: 0; box-shadow: none; width: 100%; }
+            th:last-child, td:last-child { display: none; }
+        }
+        body.saving-mode .control-panel,
+        body.saving-mode .add-btn,
+        body.saving-mode .delete-btn,
+        body.saving-mode .logo-upload-label,
+        body.saving-mode th:last-child, 
+        body.saving-mode td:last-child { display: none !important; }
+        body.saving-mode { padding: 0; background: white; }
+        body.saving-mode .invoice-container { margin: 0; box-shadow: none; }
+    </style>
+</head>
+<body>
+
+<div class="control-panel">
+    <div class="control-group">
+        🎨 Theme:
+        <input type="color" class="color-picker" value="#122826" oninput="changeColor('primary', this.value)" title="Main Color">
+        <input type="color" class="color-picker" value="#A05530" oninput="changeColor('accent', this.value)" title="Accent Color">
+        <input type="color" class="color-picker" value="#333333" oninput="changeColor('text', this.value)" title="Text Color">
+    </div>
+    
+    <div class="control-group">
+        🔤 Font:
+        <select class="font-select" onchange="changeFont(this.value)">
+            <option value="'Poppins', 'Noto Sans Khmer', sans-serif">Standard (Modern)</option>
+            <option value="'Playfair Display', serif">Elegant (Serif)</option>
+            <option value="'Roboto', 'Noto Sans Khmer', sans-serif">Simple (Roboto)</option>
+            <option value="'Battambang', cursive">Khmer Style (Battambang)</option>
+            <option value="'Dancing Script', cursive">Handwritten (Fancy)</option>
+        </select>
+    </div>
+
+    <div style="border-left: 1px solid #ddd; height: 30px; margin: 0 10px;"></div>
+
+    <button class="action-btn btn-print" onclick="window.print()">Print</button>
+    <button class="action-btn btn-jpg" onclick="saveAsJPG()">Save JPG</button>
+    <button class="action-btn btn-pdf" onclick="saveAsPDF()">Save PDF</button>
+</div>
+
+<div class="invoice-container" id="invoice-content">
+    <header>
+        <h1 contenteditable="true">INVOICE</h1>
+        <div class="logo-container">
+            <input type="file" id="logo-upload" hidden accept="image/*" onchange="loadLogo(event)">
+            <label for="logo-upload">
+                <div class="logo-text" id="default-logo-text">
+                    <span style="border: 2px solid white; padding: 0 5px;">&#8599;</span> <span contenteditable="true">WOODWORK</span>
+                </div>
+                <img id="logo-image" src="" alt="Logo">
+                <span class="logo-upload-label">Change Logo</span>
+            </label>
+        </div>
+    </header>
+    <div class="separator"></div>
+
+    <div class="info-section">
+        <div class="bill-to">
+            <h3 contenteditable="true">Bill to</h3>
+            <p contenteditable="true">
+                Monica Belluca<br>
+                Santa Mara Office 5th Floor<br>
+                New York City
+            </p>
+        </div>
+        <div class="invoice-details">
+            <table>
+                <tr>
+                    <td><strong contenteditable="true">Invoice#</strong></td>
+                    <td contenteditable="true">12345</td>
+                </tr>
+                <tr>
+                    <td><strong contenteditable="true">Date</strong></td>
+                    <td contenteditable="true">01/02/2025</td>
+                </tr>
+            </table>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <table class="main-table">
+            <thead>
+                <tr>
+                    <th style="width: 10%" contenteditable="true">No.</th>
+                    <th style="width: 40%" contenteditable="true">Item Description</th>
+                    <th style="width: 15%" contenteditable="true">Rate</th>
+                    <th style="width: 10%" contenteditable="true">Qty</th>
+                    <th style="width: 20%" contenteditable="true">Total</th>
+                    <th style="width: 5%"></th>
+                </tr>
+            </thead>
+            <tbody id="invoice-items">
+                <tr>
+                    <td class="row-num">01</td>
+                    <td contenteditable="true">Aquarius Wood</td>
+                    <td><input type="number" class="editable rate" value="50" oninput="calculateTotal()"></td>
+                    <td><input type="number" class="editable qty" value="2" oninput="calculateTotal()"></td>
+                    <td class="row-total">100.00</td>
+                    <td><button class="delete-btn" onclick="deleteRow(this)">x</button></td>
+                </tr>
+            </tbody>
+        </table>
+        <button class="add-btn" onclick="addRow()">+ Add Item</button>
+    </div>
+
+    <div class="summary-section">
+        <div class="payment-info">
+            <strong contenteditable="true">Payment Info</strong><br>
+            <div contenteditable="true">
+                Bank: ABA Bank<br>
+                Acc: 000 111 222<br>
+                Name: John Doe
+            </div>
+        </div>
+        <div class="totals">
+            <div class="totals-row">
+                <span contenteditable="true">Sub Total</span>
+                <span id="subtotal">$100.00</span>
+            </div>
+            <div class="totals-row">
+                <span>Tax (<input type="number" id="tax-rate" class="tax-input" value="0" oninput="calculateTotal()">%)</span>
+                <span id="tax-amount">$0.00</span>
+            </div>
+            <div class="amount-due">
+                <span contenteditable="true">Amount Due</span>
+                <span id="grand-total">$100.00</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer-terms">
+        <div class="terms-text">
+            <strong contenteditable="true">Terms & Conditions</strong><br>
+            <p contenteditable="true">Please pay within 15 days. Thank you for your business!</p>
+        </div>
+        <div class="signature" contenteditable="true">Signature</div>
+    </div>
+
+    <div class="page-footer">
+        <div contenteditable="true">+855 12 345 678 | www.website.com</div>
+        <div contenteditable="true">Phnom Penh, Cambodia</div>
+    </div>
+</div>
+
+<script>
+    // --- COLOR & FONT LOGIC ---
+    function changeColor(type, value) {
+        const root = document.documentElement;
+        if(type === 'primary') root.style.setProperty('--primary-color', value);
+        if(type === 'accent') root.style.setProperty('--accent-color', value);
+        if(type === 'text') root.style.setProperty('--text-color', value);
+    }
+
+    function changeFont(fontName) {
+        document.documentElement.style.setProperty('--font-family', fontName);
+    }
+
+    // --- CALCULATION LOGIC ---
+    function calculateTotal() {
+        let subtotal = 0;
+        const rows = document.querySelectorAll('#invoice-items tr');
+        let count = 1;
+        rows.forEach(row => {
+            row.querySelector('.row-num').innerText = count.toString().padStart(2, '0');
+            const rate = parseFloat(row.querySelector('.rate').value) || 0;
+            const qty = parseFloat(row.querySelector('.qty').value) || 0;
+            const total = rate * qty;
+            row.querySelector('.row-total').innerText = total.toFixed(2);
+            subtotal += total;
+            count++;
+        });
+        const taxRate = parseFloat(document.getElementById('tax-rate').value) || 0;
+        const taxVal = subtotal * (taxRate/100);
+        document.getElementById('subtotal').innerText = "$" + subtotal.toFixed(2);
+        document.getElementById('tax-amount').innerText = "$" + taxVal.toFixed(2);
+        document.getElementById('grand-total').innerText = "$" + (subtotal + taxVal).toFixed(2);
+    }
+
+    // --- TABLE LOGIC ---
+    function addRow() {
+        const tbody = document.getElementById('invoice-items');
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td class="row-num">00</td><td contenteditable="true">New Item</td>
+            <td><input type="number" class="editable rate" value="0" oninput="calculateTotal()"></td>
+            <td><input type="number" class="editable qty" value="1" oninput="calculateTotal()"></td>
+            <td class="row-total">0.00</td>
+            <td><button class="delete-btn" onclick="deleteRow(this)">x</button></td>`;
+        tbody.appendChild(tr);
+        calculateTotal();
+    }
+    function deleteRow(btn) { btn.closest('tr').remove(); calculateTotal(); }
+
+    // --- LOGO LOGIC ---
+    function loadLogo(e) {
+        const img = document.getElementById('logo-image');
+        img.src = URL.createObjectURL(e.target.files[0]);
+        img.style.display = 'inline-block';
+        document.getElementById('default-logo-text').style.display = 'none';
+    }
+
+    // --- SAVE LOGIC ---
+    function prepareSave(isSaving) {
+        document.body.classList.toggle('saving-mode', isSaving);
+        calculateTotal(); // Refresh
+    }
+
+    function saveAsJPG() {
+        prepareSave(true);
+        html2canvas(document.getElementById('invoice-content'), { scale: 2 }).then(canvas => {
+            const link = document.createElement('a');
+            link.download = 'invoice.jpg';
+            link.href = canvas.toDataURL();
+            link.click();
+            prepareSave(false);
+        });
+    }
+
+    function saveAsPDF() {
+        prepareSave(true);
+        html2canvas(document.getElementById('invoice-content'), { scale: 2 }).then(canvas => {
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            pdf.addImage(canvas.toDataURL('image/jpeg'), 'JPEG', 0, 0, 210, 297);
+            pdf.save('invoice.pdf');
+            prepareSave(false);
+        });
+    }
+
+    calculateTotal();
+</script>
+</body>
+</html>
